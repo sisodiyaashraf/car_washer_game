@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><defs>
+<linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3f6ff"/><stop offset="1" stop-color="#8fcbe8"/></linearGradient>
+<linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f7f9"/><stop offset="1" stop-color="#9fb0bd"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe680"/><stop offset="1" stop-color="#f2a900"/></linearGradient>
+<linearGradient id="blueBtn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cc3ff"/><stop offset="1" stop-color="#1e7fe0"/></linearGradient>
+<linearGradient id="blueBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fd0ff"/><stop offset="1" stop-color="#2a7be0"/></linearGradient>
+</defs><polygon points="231.7,120.7 231.7,135.3 205.8,154.0 201.4,164.7 206.5,196.2 196.2,206.5 164.7,201.4 154.0,205.8 135.3,231.7 120.7,231.7 102.0,205.8 91.3,201.4 59.8,206.5 49.5,196.2 54.6,164.7 50.2,154.0 24.3,135.3 24.3,120.7 50.2,102.0 54.6,91.3 49.5,59.8 59.8,49.5 91.3,54.6 102.0,50.2 120.7,24.3 135.3,24.3 154.0,50.2 164.7,54.6 196.2,49.5 206.5,59.8 201.4,91.3 205.8,102.0" fill="#cfd8de" stroke="#1d2b3a" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill-opacity="1"/><circle cx="128" cy="128" r="34.44" fill="#37474f" stroke="#1d2b3a" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" fill-opacity="1"/></svg>

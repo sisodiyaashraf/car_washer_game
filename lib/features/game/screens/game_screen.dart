@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/asset_paths.dart';
+import '../../../core/services/audio_service.dart';
 import '../controllers/game_controller.dart';
+import '../controllers/vehicle_motion.dart';
 import '../widgets/customization_view.dart';
 import '../widgets/done_view.dart';
+import '../widgets/motion_vehicle_widget.dart';
 import '../widgets/paint_view.dart';
 import '../widgets/phase_banner_widget.dart';
 import '../widgets/phase_indicator_bar.dart';
@@ -20,29 +24,117 @@ class GameScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<GameController>(
       create: (_) => GameController(initialLevel: levelNumber),
+      child: const _GameScreenBody(),
+    );
+  }
+}
+
+class _GameScreenBody extends StatefulWidget {
+  const _GameScreenBody();
+
+  @override
+  State<_GameScreenBody> createState() => _GameScreenBodyState();
+}
+
+class _GameScreenBodyState extends State<_GameScreenBody> with TickerProviderStateMixin {
+  late VehicleMotion _motion;
+
+  @override
+  void initState() {
+    super.initState();
+    _motion = VehicleMotion();
+    AudioService().switchBgm(BgmTrack.gameplay);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final controller = context.read<GameController>();
+      _motion.startDriveIn(
+        vsync: this,
+        wheelRadius: controller.vehicleDef.wheelRadii.first,
+        weight: controller.vehicleDef.motionProfile.weight,
+        reducedMotion: false,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _motion.dispose();
+    super.dispose();
+  }
+
+  String _getBgPhase(GamePhase phase) {
+    switch (phase) {
+      case GamePhase.washSoap:
+      case GamePhase.washRinse:
+        return 'wash_bay';
+      case GamePhase.repair:
+        return 'repair_garage';
+      case GamePhase.paint:
+      case GamePhase.customization:
+      case GamePhase.preview:
+      case GamePhase.done:
+        return 'paint_booth';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider<VehicleMotion>.value(
+      value: _motion,
       child: PopScope(
         canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) {
-            // Clean exit handler
-          }
-        },
         child: Scaffold(
-          body: SafeArea(
-            child: Consumer<GameController>(
-              builder: (context, controller, child) {
-                return Column(
+          body: Consumer<GameController>(
+            builder: (context, controller, child) {
+              final bgPhase = _getBgPhase(controller.phase);
+
+              return GestureDetector(
+                onTap: () {
+                  if (_motion.state == MotionState.arriving || _motion.state == MotionState.leaving) {
+                    _motion.skipAnimation();
+                  }
+                },
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    const PhaseIndicatorBar(),
-                    TutorialHintWidget(phase: controller.phase),
-                    PhaseBannerWidget(phase: controller.phase),
-                    Expanded(
-                      child: _buildPhaseView(controller.phase),
+                    // Phase Background Image with Cross-fade
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      child: Image.asset(
+                        AssetPaths.background(bgPhase),
+                        key: ValueKey(bgPhase),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                    ),
+                    // Motion Vehicle Layer
+                    MotionVehicleWidget(
+                      vehicle: controller.vehicleDef,
+                      motion: _motion,
+                      paintColorName: controller.vehiclePaintColorName,
+                      isDamaged: controller.phase == GamePhase.washSoap || controller.phase == GamePhase.washRinse,
+                    ),
+                    SafeArea(
+                      child: Column(
+                        children: [
+                          const PhaseIndicatorBar(),
+                          TutorialHintWidget(phase: controller.phase),
+                          PhaseBannerWidget(phase: controller.phase),
+                          Expanded(
+                            child: IgnorePointer(
+                              ignoring: _motion.isInputLocked,
+                              child: _buildPhaseView(controller.phase),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/game_constants.dart';
+import '../../../core/constants/asset_paths.dart';
 import '../../../core/particles/particle_pool.dart';
 import '../../../core/services/haptics_service.dart';
 import '../../../data/repositories/tool_repository.dart';
-import '../../../data/repositories/vehicle_repository.dart';
 import '../controllers/game_controller.dart';
+import 'vehicle_image_widget.dart';
 
 class WashView extends StatefulWidget {
   const WashView({super.key});
@@ -18,6 +18,7 @@ class WashView extends StatefulWidget {
 class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin {
   late AnimationController _tickerController;
   final ParticlePool _particlePool = ParticlePool();
+  final List<Offset> _scrubPoints = [];
 
   @override
   void initState() {
@@ -51,6 +52,7 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
     final controller = context.read<GameController>();
     controller.scrubAt(relativeOffset);
 
+    _scrubPoints.add(localPosition);
     HapticsService().throttledScrubHaptic();
 
     final pType = controller.phase == GamePhase.washSoap ? ParticleType.soap : ParticleType.water;
@@ -89,53 +91,53 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth * 0.9;
-                final height = constraints.maxHeight * 0.7;
+                final height = width / 2.0; // AspectRatio 2:1
 
                 return GestureDetector(
                   onPanDown: (details) => _handleTouch(details.localPosition, Size(width, height)),
                   onPanUpdate: (details) => _handleTouch(details.localPosition, Size(width, height)),
-                  child: Stack(
-                    children: [
-                      RepaintBoundary(
-                        child: CustomPaint(
-                          size: Size(width, height),
-                          painter: VehicleRepository.buildVehiclePainter(
-                            vehicleId: vehicle.id,
-                            bodyColor: controller.vehiclePaintColor,
-                            rimStyle: controller.selectedRimStyle,
-                            decalType: controller.selectedDecal,
-                            decalOffset: controller.decalOffset,
-                            decalScale: controller.decalScale,
-                            isCleanShine: controller.phase == GamePhase.repair || controller.phase == GamePhase.paint,
+                  child: SizedBox(
+                    width: width,
+                    height: height,
+                    child: Stack(
+                      children: [
+                        // Clean Vehicle Background Image
+                        VehicleImageWidget(
+                          vehicleId: vehicle.id,
+                          imageId: vehicle.imageId,
+                          isDamaged: false,
+                          paintColorName: controller.vehiclePaintColorName,
+                          baseColor: vehicle.baseColor,
+                        ),
+                        // Damaged / Dirt Mask Reveal Layer
+                        RepaintBoundary(
+                          child: CustomPaint(
+                            size: Size(width, height),
+                            painter: WashMaskPainter(
+                              damagedImagePath: AssetPaths.vehicleDamaged(vehicle.imageId),
+                              scrubPoints: List.unmodifiable(_scrubPoints),
+                              isSoapPhase: isSoapPhase,
+                              soapProgress: controller.soapProgress,
+                              rinseProgress: controller.rinseProgress,
+                            ),
                           ),
                         ),
-                      ),
-                      RepaintBoundary(
-                        child: CustomPaint(
-                          size: Size(width, height),
-                          painter: WashOverlayPainter(
-                            isSoapPhase: isSoapPhase,
-                            soapProgress: controller.soapProgress,
-                            rinseProgress: controller.rinseProgress,
-                            gridRows: GameConstants.washGridRows,
-                            gridCols: GameConstants.washGridCols,
+                        // Particles Canvas
+                        RepaintBoundary(
+                          child: CustomPaint(
+                            size: Size(width, height),
+                            painter: ParticlePainter(particles: _particlePool.activeParticles),
                           ),
                         ),
-                      ),
-                      RepaintBoundary(
-                        child: CustomPaint(
-                          size: Size(width, height),
-                          painter: ParticlePainter(particles: _particlePool.activeParticles),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
             ),
           ),
         ),
-        // Tools Selection Bar with Horizontal Scroll
+        // Tools Selection Bar
         Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
           color: AppColors.surface,
@@ -149,7 +151,7 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: ChoiceChip(
-                    avatar: Icon(tool.icon, size: 18, color: isSelected ? Colors.white : AppColors.primary),
+                    avatar: Image.asset(AssetPaths.toolIcon(tool.id), width: 22, height: 22, errorBuilder: (c, e, s) => Icon(tool.icon, size: 18)),
                     label: Text(tool.name),
                     selected: isSelected,
                     selectedColor: AppColors.primary,
@@ -165,19 +167,19 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
   }
 }
 
-class WashOverlayPainter extends CustomPainter {
+class WashMaskPainter extends CustomPainter {
+  final String damagedImagePath;
+  final List<Offset> scrubPoints;
   final bool isSoapPhase;
   final double soapProgress;
   final double rinseProgress;
-  final int gridRows;
-  final int gridCols;
 
-  WashOverlayPainter({
+  WashMaskPainter({
+    required this.damagedImagePath,
+    required this.scrubPoints,
     required this.isSoapPhase,
     required this.soapProgress,
     required this.rinseProgress,
-    required this.gridRows,
-    required this.gridCols,
   });
 
   @override
@@ -186,33 +188,27 @@ class WashOverlayPainter extends CustomPainter {
       final dirtPaint = Paint()
         ..color = AppColors.dirtOverlay.withValues(alpha: (1.0 - soapProgress * 0.5).clamp(0.2, 0.85))
         ..style = PaintingStyle.fill;
-
-      final rect = Rect.fromLTWH(size.width * 0.05, size.height * 0.15, size.width * 0.9, size.height * 0.65);
+      final rect = Rect.fromLTWH(0, 0, size.width, size.height);
       canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(16)), dirtPaint);
 
       final foamPaint = Paint()..color = Colors.white.withValues(alpha: soapProgress.clamp(0.2, 0.9));
-      final stepX = size.width / gridCols;
-      final stepY = size.height / gridRows;
-
-      for (int r = 0; r < gridRows; r++) {
-        for (int c = 0; c < gridCols; c++) {
-          final center = Offset((c + 0.5) * stepX, (r + 0.5) * stepY);
-          canvas.drawCircle(center, stepX * 0.45, foamPaint);
-        }
+      for (final p in scrubPoints) {
+        canvas.drawCircle(p, 20.0, foamPaint);
       }
     } else {
       final foamAlpha = (1.0 - rinseProgress).clamp(0.0, 0.9);
       if (foamAlpha > 0.05) {
         final foamPaint = Paint()..color = Colors.white.withValues(alpha: foamAlpha);
-        final rect = Rect.fromLTWH(size.width * 0.05, size.height * 0.15, size.width * 0.9, size.height * 0.65);
+        final rect = Rect.fromLTWH(0, 0, size.width, size.height);
         canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(16)), foamPaint);
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant WashOverlayPainter oldDelegate) {
-    return oldDelegate.isSoapPhase != isSoapPhase ||
+  bool shouldRepaint(covariant WashMaskPainter oldDelegate) {
+    return oldDelegate.scrubPoints.length != scrubPoints.length ||
+        oldDelegate.isSoapPhase != isSoapPhase ||
         oldDelegate.soapProgress != soapProgress ||
         oldDelegate.rinseProgress != rinseProgress;
   }

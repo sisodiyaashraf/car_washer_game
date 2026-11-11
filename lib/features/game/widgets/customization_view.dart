@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/asset_paths.dart';
 import '../../../data/models/customization_def.dart';
 import '../../../data/repositories/customization_repository.dart';
-import '../../../data/repositories/vehicle_repository.dart';
 import '../controllers/game_controller.dart';
+import 'vehicle_image_widget.dart';
 
 class CustomizationView extends StatefulWidget {
   const CustomizationView({super.key});
@@ -16,10 +17,33 @@ class CustomizationView extends StatefulWidget {
 class _CustomizationViewState extends State<CustomizationView> {
   int _activeTab = 0; // 0 = Decals, 1 = Rims
 
+  String _getDecalName(DecalType type) {
+    switch (type) {
+      case DecalType.stripes: return 'stripes';
+      case DecalType.flames: return 'flames';
+      case DecalType.racingNumber: return 'number07';
+      case DecalType.stars: return 'starburst';
+      case DecalType.camo: return 'camo';
+      case DecalType.checker: return 'checkered';
+      case DecalType.none: return '';
+    }
+  }
+
+  String _getRimName(RimStyle style) {
+    switch (style) {
+      case RimStyle.sportSpoke: return 'sport5';
+      case RimStyle.offroadBeadlock: return 'offroad';
+      case RimStyle.starAlloy: return 'star';
+      case RimStyle.classic: return 'classic';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<GameController>();
     final vehicle = controller.vehicleDef;
+    final decalName = _getDecalName(controller.selectedDecal);
+    final rimName = _getRimName(controller.selectedRimStyle);
 
     return Column(
       children: [
@@ -39,7 +63,7 @@ class _CustomizationViewState extends State<CustomizationView> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth * 0.9;
-                final height = constraints.maxHeight * 0.7;
+                final height = width / 2.0;
 
                 return GestureDetector(
                   onPanUpdate: (details) {
@@ -51,16 +75,52 @@ class _CustomizationViewState extends State<CustomizationView> {
                       controller.updateDecalTransform(newOffset, controller.decalScale);
                     }
                   },
-                  child: CustomPaint(
-                    size: Size(width, height),
-                    painter: VehicleRepository.buildVehiclePainter(
-                      vehicleId: vehicle.id,
-                      bodyColor: controller.vehiclePaintColor,
-                      rimStyle: controller.selectedRimStyle,
-                      decalType: controller.selectedDecal,
-                      decalOffset: controller.decalOffset,
-                      decalScale: controller.decalScale,
-                      isCleanShine: true,
+                  child: SizedBox(
+                    width: width,
+                    height: height,
+                    child: Stack(
+                      children: [
+                        // Vehicle Clean Base Image
+                        VehicleImageWidget(
+                          vehicleId: vehicle.id,
+                          imageId: vehicle.imageId,
+                          isDamaged: false,
+                          paintColorName: controller.vehiclePaintColorName,
+                          baseColor: controller.vehiclePaintColor,
+                        ),
+                        // Decal Overlay Image (Draggable & Scalable)
+                        if (decalName.isNotEmpty)
+                          Positioned(
+                            left: controller.decalOffset.dx * width - (60 * controller.decalScale),
+                            top: controller.decalOffset.dy * height - (30 * controller.decalScale),
+                            child: Image.asset(
+                              AssetPaths.decal(decalName),
+                              width: 120 * controller.decalScale,
+                              height: 60 * controller.decalScale,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        // Rim Overlays (Sized to 1.38x wheel radius)
+                        ...List.generate(vehicle.wheelCenters.length, (idx) {
+                          final center = vehicle.wheelCenters[idx];
+                          final radius = vehicle.wheelRadii[idx];
+                          final rimDiameter = (radius * 2.0 * 1.38) * width;
+
+                          final posX = center.dx * width - rimDiameter / 2;
+                          final posY = center.dy * height - rimDiameter / 2;
+
+                          return Positioned(
+                            left: posX,
+                            top: posY,
+                            child: Image.asset(
+                              AssetPaths.rim(rimName),
+                              width: rimDiameter,
+                              height: rimDiameter,
+                              fit: BoxFit.contain,
+                            ),
+                          );
+                        }),
+                      ],
                     ),
                   ),
                 );

@@ -1,23 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../data/repositories/vehicle_repository.dart';
 import '../controllers/game_controller.dart';
+import 'vehicle_image_widget.dart';
 
 class PaintView extends StatelessWidget {
   const PaintView({super.key});
 
-  static const List<Color> palette = [
-    Color(0xFF1E88E5), // Blue
-    Color(0xFFE53935), // Red
-    Color(0xFF43A047), // Green
-    Color(0xFFFFB703), // Yellow/Gold
-    Color(0xFF8E24AA), // Purple
-    Color(0xFFFB8C00), // Orange
-    Color(0xFF00ACC1), // Cyan
-    Color(0xFFD81B60), // Pink
-    Color(0xFF212121), // Charcoal Black
-    Color(0xFFECEFF1), // Silver/White
+  static const List<Map<String, dynamic>> colorSwatches = [
+    {'name': 'red', 'color': Color(0xFFE53935)},
+    {'name': 'orange', 'color': Color(0xFFFB8C00)},
+    {'name': 'yellow', 'color': Color(0xFFFDD835)},
+    {'name': 'green', 'color': Color(0xFF43A047)},
+    {'name': 'blue', 'color': Color(0xFF1E88E5)},
+    {'name': 'purple', 'color': Color(0xFF8E24AA)},
   ];
 
   @override
@@ -32,7 +28,7 @@ class PaintView extends StatelessWidget {
           child: Chip(
             avatar: Icon(Icons.format_paint, size: 18, color: AppColors.primaryDark),
             label: Text(
-              'PAINT BOOTH: Choose body color!',
+              'PAINT BOOTH: Pick a body color!',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             backgroundColor: AppColors.surface,
@@ -43,22 +39,22 @@ class PaintView extends StatelessWidget {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth * 0.9;
-                final height = constraints.maxHeight * 0.7;
 
-                return GestureDetector(
-                  onPanUpdate: (details) {
-                    // Spray paint touch gesture inside paint zone
-                  },
-                  child: CustomPaint(
-                    size: Size(width, height),
-                    painter: VehicleRepository.buildVehiclePainter(
+                return SizedBox(
+                  width: width,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: VehicleImageWidget(
+                      key: ValueKey('${vehicle.id}_${controller.vehiclePaintColorName}'),
                       vehicleId: vehicle.id,
-                      bodyColor: controller.vehiclePaintColor,
+                      imageId: vehicle.imageId,
+                      isDamaged: false,
+                      paintColorName: controller.vehiclePaintColorName,
+                      baseColor: controller.vehiclePaintColor,
                       rimStyle: controller.selectedRimStyle,
                       decalType: controller.selectedDecal,
                       decalOffset: controller.decalOffset,
                       decalScale: controller.decalScale,
-                      isCleanShine: true,
                     ),
                   ),
                 );
@@ -66,7 +62,7 @@ class PaintView extends StatelessWidget {
             ),
           ),
         ),
-        // Color Palette Selector
+        // Color Swatches Selector
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           color: AppColors.surface,
@@ -74,18 +70,16 @@ class PaintView extends StatelessWidget {
             children: [
               SizedBox(
                 height: 56,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: palette.length,
-                  itemBuilder: (context, index) {
-                    final color = palette[index];
-                    final isSelected = controller.vehiclePaintColor == color;
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: colorSwatches.map((swatch) {
+                    final colorName = swatch['name'] as String;
+                    final color = swatch['color'] as Color;
+                    final isSelected = controller.vehiclePaintColorName == colorName;
 
                     return GestureDetector(
-                      onTap: () => controller.selectPaintColor(color),
+                      onTap: () => controller.selectPaintColorName(colorName, color),
                       child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
@@ -111,7 +105,7 @@ class PaintView extends StatelessWidget {
                             : null,
                       ),
                     );
-                  },
+                  }).toList(),
                 ),
               ),
               const SizedBox(height: 12),

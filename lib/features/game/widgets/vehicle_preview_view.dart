@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../data/repositories/vehicle_repository.dart';
 import '../controllers/game_controller.dart';
+import 'vehicle_image_widget.dart';
 
 class VehiclePreviewView extends StatelessWidget {
   const VehiclePreviewView({super.key});
@@ -31,7 +31,6 @@ class VehiclePreviewView extends StatelessWidget {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth * 0.9;
-                final height = constraints.maxHeight * 0.7;
 
                 return Container(
                   padding: const EdgeInsets.all(16),
@@ -46,16 +45,18 @@ class VehiclePreviewView extends StatelessWidget {
                       )
                     ],
                   ),
-                  child: CustomPaint(
-                    size: Size(width, height),
-                    painter: VehicleRepository.buildVehiclePainter(
+                  child: SizedBox(
+                    width: width,
+                    child: VehicleImageWidget(
                       vehicleId: vehicle.id,
-                      bodyColor: controller.vehiclePaintColor,
+                      imageId: vehicle.imageId,
+                      isDamaged: false,
+                      paintColorName: controller.vehiclePaintColorName,
+                      baseColor: controller.vehiclePaintColor,
                       rimStyle: controller.selectedRimStyle,
                       decalType: controller.selectedDecal,
                       decalOffset: controller.decalOffset,
                       decalScale: controller.decalScale,
-                      isCleanShine: true,
                     ),
                   ),
                 );

@@ -40,8 +40,8 @@ class GameController extends ChangeNotifier {
   Timer? _timer;
 
   // --- WASH PHASE STATE ---
-  late List<List<bool>> _soapGrid; // true = foamed
-  late List<List<bool>> _rinseGrid; // true = rinsed
+  late List<List<bool>> _soapGrid;
+  late List<List<bool>> _rinseGrid;
   double _soapProgress = 0.0;
   double _rinseProgress = 0.0;
 
@@ -63,6 +63,9 @@ class GameController extends ChangeNotifier {
 
   late Color _vehiclePaintColor;
   Color get vehiclePaintColor => _vehiclePaintColor;
+
+  String _vehiclePaintColorName = 'blue';
+  String get vehiclePaintColorName => _vehiclePaintColorName;
 
   DecalType _selectedDecal = DecalType.none;
   DecalType get selectedDecal => _selectedDecal;
@@ -99,7 +102,6 @@ class GameController extends ChangeNotifier {
     levelDef = LevelRepository.getLevel(levelNumber);
     vehicleDef = VehicleRepository.getVehicleById(levelDef.vehicleId);
 
-    // Init Grids
     _soapGrid = List.generate(
       GameConstants.washGridRows,
       (_) => List.filled(GameConstants.washGridCols, false),
@@ -111,10 +113,8 @@ class GameController extends ChangeNotifier {
     _soapProgress = 0.0;
     _rinseProgress = 0.0;
 
-    // Load Default Tool
     _selectedWashTool = ToolRepository.washTools.firstWhere((t) => t.isForSoap);
 
-    // Init Repair Spots
     _repairHitsRemaining.clear();
     final spotsToInclude = vehicleDef.repairSpots.take(levelDef.activeRepairSpotsCount);
     for (final spot in spotsToInclude) {
@@ -122,10 +122,10 @@ class GameController extends ChangeNotifier {
     }
     _selectedRepairSpotId = _repairHitsRemaining.keys.isNotEmpty ? _repairHitsRemaining.keys.first : null;
 
-    // Load saved or base customization
     final saved = StorageService().getCustomization(vehicleDef.id);
     _currentColor = saved?.paintColor ?? vehicleDef.baseColor;
     _vehiclePaintColor = _currentColor;
+    _vehiclePaintColorName = saved?.paintColorName ?? 'blue';
     _selectedDecal = saved?.decalType ?? DecalType.none;
     _decalOffset = saved?.decalOffset ?? const Offset(0.5, 0.45);
     _decalScale = saved?.decalScale ?? 1.0;
@@ -151,14 +151,11 @@ class GameController extends ChangeNotifier {
     super.dispose();
   }
 
-  // --- REWARDED ADS HOOK ---
   void onRewardedRequested(RewardType type, VoidCallback onGranted) {
-    // AdMob hook placeholder - will trigger ad load in step 7
     onGranted();
     notifyListeners();
   }
 
-  // --- WASH MECHANIC ---
   void selectWashTool(WashToolDef tool) {
     _selectedWashTool = tool;
     notifyListeners();
@@ -253,7 +250,6 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- REPAIR MECHANIC ---
   void selectRepairSpot(String spotId) {
     _selectedRepairSpotId = spotId;
     notifyListeners();
@@ -267,7 +263,6 @@ class GameController extends ChangeNotifier {
     if (remaining > 0) {
       _repairHitsRemaining[spotId] = remaining - 1;
 
-      // Automatically select next uncompleted spot if any
       final remainingUnfixed = _repairHitsRemaining.keys.where((k) => _repairHitsRemaining[k]! > 0);
       if (remainingUnfixed.isNotEmpty) {
         _selectedRepairSpotId = remainingUnfixed.first;
@@ -284,8 +279,8 @@ class GameController extends ChangeNotifier {
     return _repairHitsRemaining.values.every((hits) => hits <= 0);
   }
 
-  // --- PAINT & CUSTOMIZATION MECHANIC ---
-  void selectPaintColor(Color color) {
+  void selectPaintColorName(String colorName, Color color) {
+    _vehiclePaintColorName = colorName;
     _currentColor = color;
     _vehiclePaintColor = color;
     notifyListeners();
@@ -316,10 +311,10 @@ class GameController extends ChangeNotifier {
 
   void completeCustomization() {
     if (_phase == GamePhase.customization) {
-      // Save customization
       final custom = VehicleCustomization(
         vehicleId: vehicleDef.id,
         paintColor: _vehiclePaintColor,
+        paintColorName: _vehiclePaintColorName,
         decalType: _selectedDecal,
         decalOffset: _decalOffset,
         decalScale: _decalScale,
@@ -338,7 +333,6 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  // --- DONE PHASE ---
   void _calculateResultsAndFinish() {
     _timer?.cancel();
     _phase = GamePhase.done;

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><defs>
+<linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3f6ff"/><stop offset="1" stop-color="#8fcbe8"/></linearGradient>
+<linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f7f9"/><stop offset="1" stop-color="#9fb0bd"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe680"/><stop offset="1" stop-color="#f2a900"/></linearGradient>
+<linearGradient id="blueBtn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cc3ff"/><stop offset="1" stop-color="#1e7fe0"/></linearGradient>
+<linearGradient id="blueBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fd0ff"/><stop offset="1" stop-color="#2a7be0"/></linearGradient>
+</defs><rect x="20" y="60" width="216" height="136" rx="24" fill="#ff9800" stroke="#1d2b3a" stroke-width="8" stroke-linejoin="round" stroke-linecap="round" fill-opacity="1"/><circle cx="20" cy="128" r="18" fill="#fff"/><circle cx="236" cy="128" r="18" fill="#fff"/><polygon points="110,92 110,164 172,128" fill="#fff" stroke="#1d2b3a" stroke-width="6" stroke-linejoin="round"/></svg>
