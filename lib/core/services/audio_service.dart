@@ -31,6 +31,14 @@ class AudioService {
     'coin': 'assets/audio/coin.wav',
     'level_complete': 'assets/audio/level_complete.wav',
     'button_tap': 'assets/audio/button_tap.wav',
+    'engine_idle': 'assets/audio/engine_idle.wav',
+    'engine_rev': 'assets/audio/engine_rev.wav',
+    'brake_squeak': 'assets/audio/brake_squeak.wav',
+    'honk_car': 'assets/audio/honk_car.wav',
+    'honk_truck': 'assets/audio/honk_truck.wav',
+    'honk_plane': 'assets/audio/honk_plane.wav',
+    'garage_door': 'assets/audio/garage_door.wav',
+    'whoosh': 'assets/audio/whoosh.wav',
   };
 
   Future<void> initAudioContext() async {
@@ -73,6 +81,11 @@ class AudioService {
   void playCoinSound() => playSfx('coin');
   void playLevelCompleteSound() => playSfx('level_complete');
   void playButtonClick() => playSfx('button_tap');
+  void playEngineRev() => playSfx('engine_rev');
+  void playBrakeSqueak() => playSfx('brake_squeak');
+  void playHonk(String honkType) => playSfx('honk_$honkType');
+  void playGarageDoor() => playSfx('garage_door');
+  void playWhoosh() => playSfx('whoosh');
 
   void switchBgm(BgmTrack track) async {
     if (_currentBgmTrack == track) return;
