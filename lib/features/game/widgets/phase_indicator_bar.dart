@@ -53,13 +53,13 @@ class PhaseIndicatorBar extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surface.withValues(alpha: 0.95),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           )
         ],
@@ -82,11 +82,12 @@ class PhaseIndicatorBar extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       phaseText,
                       style: const TextStyle(
                         fontSize: 13,
-                        color: AppColors.primaryDark,
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -97,16 +98,18 @@ class PhaseIndicatorBar extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.secondary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.timer_outlined, size: 18, color: AppColors.accent),
+                      const Icon(Icons.timer_outlined, size: 18, color: AppColors.secondary),
                       const SizedBox(width: 4),
                       Text(
                         '${controller.elapsedSeconds}s',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: AppColors.accent,
+                          color: AppColors.secondary,
+                          fontSize: 14,
                         ),
                       ),
                     ],
@@ -119,12 +122,12 @@ class PhaseIndicatorBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
                 value: progress.clamp(0.0, 1.0),
-                minHeight: 10,
-                backgroundColor: Colors.grey.shade200,
+                minHeight: 8,
+                backgroundColor: AppColors.cardBg,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   phase == GamePhase.washSoap || phase == GamePhase.washRinse
                       ? AppColors.primary
-                      : AppColors.secondary,
+                      : AppColors.accent,
                 ),
               ),
             ),

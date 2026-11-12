@@ -29,8 +29,9 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: MainMenuScreen()));
     await tester.pump(const Duration(milliseconds: 100));
 
-    final settingsIcon = find.byIcon(Icons.settings);
-    await tester.tap(settingsIcon);
+    final settingsIconButton = find.byType(IconButton).first;
+    expect(settingsIconButton, findsOneWidget);
+    await tester.tap(settingsIconButton);
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('⚙️ SETTINGS ⚙️'), findsOneWidget);
@@ -63,7 +64,6 @@ void main() {
     controller.claim2XCoinsReward();
     expect(controller.earnedCoins, initialCoins * 2);
 
-    // Second claim should be ignored
     controller.claim2XCoinsReward();
     expect(controller.earnedCoins, initialCoins * 2);
     controller.dispose();

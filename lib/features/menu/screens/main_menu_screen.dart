@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/ads/banner_ad_widget.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/asset_paths.dart';
 import '../../../core/constants/game_constants.dart';
 import '../../../core/particles/particle_pool.dart';
 import '../../../core/purchases/purchase_service.dart';
@@ -56,8 +57,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppColors.primary,
-              AppColors.primaryDark,
+              AppColors.background,
+              AppColors.surface,
             ],
           ),
         ),
@@ -66,12 +67,17 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
             children: [
               // Top Coins & Settings Bar
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.settings, color: Colors.white, size: 28),
+                      icon: Image.asset(
+                        AssetPaths.ui('gear'),
+                        width: 32,
+                        height: 32,
+                        errorBuilder: (c, e, s) => const Icon(Icons.settings, color: Colors.white, size: 28),
+                      ),
                       onPressed: () async {
                         await showDialog(
                           context: context,
@@ -80,37 +86,41 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                         _refreshState();
                       },
                     ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white30),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardBg,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.5)),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3)),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Image.asset(
+                            AssetPaths.ui('coin'),
+                            width: 24,
+                            height: 24,
+                            errorBuilder: (c, e, s) => const Icon(Icons.monetization_on, color: AppColors.secondary, size: 22),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.monetization_on, color: AppColors.secondary, size: 22),
-                              const SizedBox(width: 6),
-                              Text(
-                                '${storage.coins}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(width: 8),
+                          Text(
+                            '${storage.coins}',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
               const Spacer(),
-              // Title & Icon Banner
+              // Title & Interactive Bubble Emblem
               GestureDetector(
                 onTapDown: (details) {
                   _bubblePool.spawnBurst(details.localPosition, ParticleType.soap, Colors.white, count: 6);
@@ -119,49 +129,60 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                   alignment: Alignment.center,
                   children: [
                     CustomPaint(
-                      size: const Size(200, 140),
+                      size: const Size(220, 150),
                       painter: ParticlePainter(particles: _bubblePool.activeParticles),
                     ),
                     Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
+                        color: AppColors.primary.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 2),
+                        boxShadow: [
+                          BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 30, spreadRadius: 5),
+                        ],
                       ),
                       child: const Icon(
                         Icons.directions_car_filled,
-                        size: 90,
-                        color: Colors.white,
+                        size: 96,
+                        color: AppColors.primary,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Text(
                 GameConstants.appName.toUpperCase(),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   letterSpacing: 1.5,
                   shadows: [
-                    Shadow(color: Colors.black38, offset: Offset(2, 2), blurRadius: 4),
+                    Shadow(color: Colors.black45, offset: Offset(2, 2), blurRadius: 4),
                   ],
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                'Current Level: ${storage.currentLevel}',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Current Level: ${storage.currentLevel}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const Spacer(),
-              // Menu Actions
+              // Sleek Modern Menu Action Buttons
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Column(
@@ -177,12 +198,20 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondary,
-                        minimumSize: const Size(double.infinity, 56),
+                        foregroundColor: Colors.black87,
+                        elevation: 6,
+                        minimumSize: const Size(double.infinity, 58),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       ),
-                      icon: const Icon(Icons.play_arrow_rounded, size: 30),
+                      icon: Image.asset(
+                        AssetPaths.ui('play_ticket'),
+                        width: 28,
+                        height: 28,
+                        errorBuilder: (c, e, s) => const Icon(Icons.play_arrow_rounded, size: 30),
+                      ),
                       label: const Text(
                         'START PLAYING',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -197,9 +226,11 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                               _refreshState();
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.surface,
+                              backgroundColor: AppColors.cardBg,
                               foregroundColor: AppColors.textPrimary,
-                              minimumSize: const Size(double.infinity, 48),
+                              elevation: 2,
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
                             icon: const Icon(Icons.garage, color: AppColors.primary),
                             label: const Text('GARAGE', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -216,12 +247,19 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                               _refreshState();
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.surface,
+                              backgroundColor: AppColors.cardBg,
                               foregroundColor: AppColors.textPrimary,
-                              minimumSize: const Size(double.infinity, 48),
+                              elevation: 2,
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
-                            icon: const Icon(Icons.card_giftcard, color: AppColors.accent),
-                            label: const Text('DAILY REWARD', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            icon: Image.asset(
+                              AssetPaths.ui('star_filled'),
+                              width: 20,
+                              height: 20,
+                              errorBuilder: (c, e, s) => const Icon(Icons.card_giftcard, color: AppColors.secondary),
+                            ),
+                            label: const Text('DAILY REWARD', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                           ),
                         ),
                       ],
@@ -231,9 +269,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                       OutlinedButton.icon(
                         onPressed: () => PurchaseService().buyRemoveAds(context),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white70),
+                          foregroundColor: AppColors.textSecondary,
+                          side: const BorderSide(color: AppColors.cardBg),
                           minimumSize: const Size(double.infinity, 44),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                         icon: const Icon(Icons.block, size: 18),
                         label: const Text('REMOVE ADS (IAP)'),
@@ -243,7 +282,6 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                 ),
               ),
               const SizedBox(height: 16),
-              // Adaptive Banner Ad at Bottom
               const AdaptiveBannerAdWidget(),
             ],
           ),

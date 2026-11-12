@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/asset_paths.dart';
 import '../../../core/particles/particle_pool.dart';
+import '../../../core/services/audio_service.dart';
 import '../../../core/services/haptics_service.dart';
 import '../../../data/repositories/tool_repository.dart';
 import '../controllers/game_controller.dart';
@@ -18,7 +19,8 @@ class WashView extends StatefulWidget {
 class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin {
   late AnimationController _tickerController;
   final ParticlePool _particlePool = ParticlePool();
-  final List<Offset> _scrubPoints = [];
+  Offset? _activeTouchPos;
+  bool _isDragging = false;
 
   @override
   void initState() {
@@ -52,12 +54,25 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
     final controller = context.read<GameController>();
     controller.scrubAt(relativeOffset);
 
-    _scrubPoints.add(localPosition);
+    _activeTouchPos = localPosition;
+    _isDragging = true;
     HapticsService().throttledScrubHaptic();
 
-    final pType = controller.phase == GamePhase.washSoap ? ParticleType.soap : ParticleType.water;
-    final pColor = controller.phase == GamePhase.washSoap ? Colors.white : const Color(0xFF4FC3F7);
-    _particlePool.spawnBurst(localPosition, pType, pColor, count: 4);
+    if (controller.phase == GamePhase.washSoap) {
+      AudioService().playScrubSound();
+      _particlePool.spawnBurst(localPosition, ParticleType.soap, Colors.white, count: 5);
+    } else {
+      AudioService().playSpraySound();
+      _particlePool.spawnBurst(localPosition, ParticleType.water, AppColors.waterBlue, count: 6);
+    }
+  }
+
+  void _handleTouchEnd() {
+    setState(() {
+      _isDragging = false;
+      _activeTouchPos = null;
+    });
+    AudioService().stopSfx();
   }
 
   @override
@@ -71,37 +86,54 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
 
     return Column(
       children: [
+        // Modern Status Badge
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Chip(
-            avatar: Icon(
-              isSoapPhase ? Icons.soap : Icons.water_drop,
-              size: 18,
-              color: isSoapPhase ? AppColors.secondary : AppColors.primary,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isSoapPhase ? AppColors.secondary : AppColors.primary, width: 1.5),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 3)),
+              ],
             ),
-            label: Text(
-              isSoapPhase ? 'STAGE 1: SOAP ($pct% / $targetPct%)' : 'STAGE 2: RINSE ($pct% / $targetPct%)',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isSoapPhase ? Icons.soap : Icons.water_drop,
+                  size: 20,
+                  color: isSoapPhase ? AppColors.secondary : AppColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isSoapPhase ? 'STAGE 1: SOAP ($pct% / $targetPct%)' : 'STAGE 2: RINSE ($pct% / $targetPct%)',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 14),
+                ),
+              ],
             ),
-            backgroundColor: AppColors.surface,
           ),
         ),
         Expanded(
           child: Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final width = constraints.maxWidth * 0.9;
-                final height = width / 2.0; // AspectRatio 2:1
+                final width = constraints.maxWidth * 0.92;
+                final height = width / 2.0;
 
                 return GestureDetector(
                   onPanDown: (details) => _handleTouch(details.localPosition, Size(width, height)),
                   onPanUpdate: (details) => _handleTouch(details.localPosition, Size(width, height)),
+                  onPanEnd: (_) => _handleTouchEnd(),
+                  onPanCancel: () => _handleTouchEnd(),
                   child: SizedBox(
                     width: width,
                     height: height,
                     child: Stack(
                       children: [
-                        // Clean Vehicle Background Image
+                        // Clean Vehicle Background
                         VehicleImageWidget(
                           vehicleId: vehicle.id,
                           imageId: vehicle.imageId,
@@ -114,21 +146,45 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
                           child: CustomPaint(
                             size: Size(width, height),
                             painter: WashMaskPainter(
-                              damagedImagePath: AssetPaths.vehicleDamaged(vehicle.imageId),
-                              scrubPoints: List.unmodifiable(_scrubPoints),
                               isSoapPhase: isSoapPhase,
                               soapProgress: controller.soapProgress,
                               rinseProgress: controller.rinseProgress,
                             ),
                           ),
                         ),
-                        // Particles Canvas
+                        // Particle Stream Canvas
                         RepaintBoundary(
                           child: CustomPaint(
                             size: Size(width, height),
                             painter: ParticlePainter(particles: _particlePool.activeParticles),
                           ),
                         ),
+                        // Active Animated Tool Cursor
+                        if (_isDragging && _activeTouchPos != null)
+                          Positioned(
+                            left: _activeTouchPos!.dx - 28,
+                            top: _activeTouchPos!.dy - 28,
+                            child: Transform.rotate(
+                              angle: isSoapPhase ? -0.2 : 0.2,
+                              child: Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  border: Border.all(color: isSoapPhase ? AppColors.secondary : AppColors.primary, width: 2),
+                                ),
+                                child: Center(
+                                  child: Image.asset(
+                                    AssetPaths.toolIcon(controller.selectedWashTool.id),
+                                    width: 38,
+                                    height: 38,
+                                    errorBuilder: (c, e, s) => Icon(controller.selectedWashTool.icon, color: Colors.white, size: 28),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -137,10 +193,16 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
             ),
           ),
         ),
-        // Tools Selection Bar
+        // Modern Tool Selector Bar
         Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          color: AppColors.surface,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, -4)),
+            ],
+          ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -149,13 +211,28 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
                 final isSelected = controller.selectedWashTool.id == tool.id;
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ChoiceChip(
-                    avatar: Image.asset(AssetPaths.toolIcon(tool.id), width: 22, height: 22, errorBuilder: (c, e, s) => Icon(tool.icon, size: 18)),
-                    label: Text(tool.name),
-                    selected: isSelected,
-                    selectedColor: AppColors.primary,
-                    onSelected: (_) => controller.selectWashTool(tool),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    child: ChoiceChip(
+                      avatar: Image.asset(
+                        AssetPaths.toolIcon(tool.id),
+                        width: 24,
+                        height: 24,
+                        errorBuilder: (c, e, s) => Icon(tool.icon, size: 20, color: isSelected ? Colors.white : AppColors.primary),
+                      ),
+                      label: Text(
+                        tool.name,
+                        style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.white : AppColors.textPrimary),
+                      ),
+                      selected: isSelected,
+                      selectedColor: AppColors.primary,
+                      backgroundColor: AppColors.cardBg,
+                      onSelected: (_) {
+                        HapticsService().selectionClick();
+                        controller.selectWashTool(tool);
+                      },
+                    ),
                   ),
                 );
               }).toList(),
@@ -168,15 +245,11 @@ class _WashViewState extends State<WashView> with SingleTickerProviderStateMixin
 }
 
 class WashMaskPainter extends CustomPainter {
-  final String damagedImagePath;
-  final List<Offset> scrubPoints;
   final bool isSoapPhase;
   final double soapProgress;
   final double rinseProgress;
 
   WashMaskPainter({
-    required this.damagedImagePath,
-    required this.scrubPoints,
     required this.isSoapPhase,
     required this.soapProgress,
     required this.rinseProgress,
@@ -186,17 +259,12 @@ class WashMaskPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (isSoapPhase) {
       final dirtPaint = Paint()
-        ..color = AppColors.dirtOverlay.withValues(alpha: (1.0 - soapProgress * 0.5).clamp(0.2, 0.85))
+        ..color = AppColors.dirtOverlay.withValues(alpha: (1.0 - soapProgress * 0.6).clamp(0.15, 0.85))
         ..style = PaintingStyle.fill;
       final rect = Rect.fromLTWH(0, 0, size.width, size.height);
       canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(16)), dirtPaint);
-
-      final foamPaint = Paint()..color = Colors.white.withValues(alpha: soapProgress.clamp(0.2, 0.9));
-      for (final p in scrubPoints) {
-        canvas.drawCircle(p, 20.0, foamPaint);
-      }
     } else {
-      final foamAlpha = (1.0 - rinseProgress).clamp(0.0, 0.9);
+      final foamAlpha = (1.0 - rinseProgress).clamp(0.0, 0.85);
       if (foamAlpha > 0.05) {
         final foamPaint = Paint()..color = Colors.white.withValues(alpha: foamAlpha);
         final rect = Rect.fromLTWH(0, 0, size.width, size.height);
@@ -207,8 +275,7 @@ class WashMaskPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant WashMaskPainter oldDelegate) {
-    return oldDelegate.scrubPoints.length != scrubPoints.length ||
-        oldDelegate.isSoapPhase != isSoapPhase ||
+    return oldDelegate.isSoapPhase != isSoapPhase ||
         oldDelegate.soapProgress != soapProgress ||
         oldDelegate.rinseProgress != rinseProgress;
   }
