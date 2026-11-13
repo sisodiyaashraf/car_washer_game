@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'core/ads/ad_service.dart';
 import 'core/constants/game_constants.dart';
+import 'core/layout/game_layout.dart';
 import 'core/purchases/purchase_service.dart';
 import 'core/services/audio_service.dart';
 import 'core/services/storage_service.dart';
@@ -13,9 +13,7 @@ void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    await lockGameOrientation();
 
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
