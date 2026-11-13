@@ -28,6 +28,7 @@ flutter:
 
   assets:
     - assets/audio/
+    - assets/fonts/
     - assets/images/icon/
     - assets/images/backgrounds/
     - assets/images/vehicles/
@@ -39,3 +40,11 @@ flutter:
     - assets/images/wheels/
     - assets/images/fx/
     - assets/images/props/
+
+  fonts:
+    - family: FredokaDisplay
+      fonts:
+        - asset: assets/fonts/Fredoka-Bold.ttf
+    - family: FredokaBody
+      fonts:
+        - asset: assets/fonts/Fredoka-Regular.ttf
