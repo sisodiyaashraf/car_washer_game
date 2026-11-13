@@ -16,11 +16,20 @@ class VehicleMotion extends ChangeNotifier {
   double _wheelAngle = 0.0; // Radians
   double get wheelAngle => _wheelAngle;
 
-  double _bodyPitch = 0.0; // Radians (nose dip / squat)
+  double _bodyPitch = 0.0; // Radians (max 2.5 degrees = ~0.0436 rad)
   double get bodyPitch => _bodyPitch;
 
   double _bodyBounce = 0.0; // Vertical bounce offset
   double get bodyBounce => _bodyBounce;
+
+  double _engineVibration = 0.0; // 6 Hz, 0.6 px idle vibration when parked
+  double get engineVibration => _engineVibration;
+
+  double _trackScroll = 0.0; // Tread scroll offset for tracked vehicles
+  double get trackScroll => _trackScroll;
+
+  double _propellerBlur = 0.0; // Propeller blur rotation for planes
+  double get propellerBlur => _propellerBlur;
 
   bool _isInputLocked = true;
   bool get isInputLocked => _isInputLocked;
@@ -44,15 +53,18 @@ class VehicleMotion extends ChangeNotifier {
   bool get isGarageDoorClosed => _isGarageDoorClosed;
 
   AnimationController? _motionTicker;
+  AnimationController? _idleTicker;
 
   void startDriveIn({
     required TickerProvider vsync,
     double wheelRadius = 0.0733,
     double weight = 1.0,
+    bool isHeavy = false,
     bool reducedMotion = false,
     VoidCallback? onComplete,
   }) {
     _motionTicker?.dispose();
+    _idleTicker?.dispose();
     _state = MotionState.arriving;
     _isInputLocked = true;
     _isHeadlightOn = !reducedMotion;
@@ -69,12 +81,13 @@ class VehicleMotion extends ChangeNotifier {
       _isSpeedlineVisible = false;
       _isDustActive = false;
       _isGarageDoorClosed = false;
+      _startParkedIdle(vsync);
       notifyListeners();
       onComplete?.call();
       return;
     }
 
-    final durationMs = (1400 * weight).round();
+    final durationMs = (isHeavy ? 1900 : 1400 * weight).round();
     _motionTicker = AnimationController(
       vsync: vsync,
       duration: Duration(milliseconds: durationMs),
@@ -87,13 +100,15 @@ class VehicleMotion extends ChangeNotifier {
       final newX = -1.3 + (1.3 * Curves.easeOutCubic.transform(progress));
       final deltaX = newX - _x;
       _x = newX;
-      _velocity = deltaX * 60; // Approximate velocity
+      _velocity = deltaX * 60;
 
-      // Wheel spin rolling math: angle = distance / radius
+      // Rolling spin math: angle = distance / radius
       _wheelAngle += deltaX / wheelRadius;
+      _trackScroll += deltaX * 10;
+      _propellerBlur += deltaX * 20;
 
-      // Suspension bounce & braking nose dip
-      _bodyPitch = (1.0 - progress) * -0.035; // Nose dips during braking
+      // Suspension bounce & braking nose dip (max 2.5 deg = ~0.0436 rad)
+      _bodyPitch = ((1.0 - progress) * -0.035).clamp(-0.0436, 0.0436);
       _bodyBounce = sin(progress * pi * 8) * 3.0 * (1.0 - progress);
 
       if (progress >= 0.8) {
@@ -112,6 +127,7 @@ class VehicleMotion extends ChangeNotifier {
         _isTaillightGlow = false;
         _isDustActive = false;
         _isGarageDoorClosed = false;
+        _startParkedIdle(vsync);
         onComplete?.call();
       }
 
@@ -119,6 +135,23 @@ class VehicleMotion extends ChangeNotifier {
     });
 
     _motionTicker!.forward();
+  }
+
+  void _startParkedIdle(TickerProvider vsync) {
+    _idleTicker?.dispose();
+    _idleTicker = AnimationController(
+      vsync: vsync,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
+
+    _idleTicker!.addListener(() {
+      if (_state == MotionState.parked) {
+        // 6 Hz idle engine vibration (0.6 px amplitude)
+        _engineVibration = sin(_idleTicker!.value * pi * 12) * 0.6;
+        _propellerBlur += 0.1;
+        notifyListeners();
+      }
+    });
   }
 
   void startDriveOut({
@@ -129,6 +162,7 @@ class VehicleMotion extends ChangeNotifier {
     VoidCallback? onComplete,
   }) {
     _motionTicker?.dispose();
+    _idleTicker?.dispose();
     _state = MotionState.leaving;
     _isInputLocked = true;
     _isSpeedlineVisible = !reducedMotion;
@@ -144,7 +178,7 @@ class VehicleMotion extends ChangeNotifier {
       return;
     }
 
-    final durationMs = (1200 * weight).round();
+    final durationMs = (1100 * weight).round();
     _motionTicker = AnimationController(
       vsync: vsync,
       duration: Duration(milliseconds: durationMs),
@@ -159,11 +193,12 @@ class VehicleMotion extends ChangeNotifier {
       _x = newX;
       _velocity = deltaX * 60;
 
-      // Wheel spin rolling math
       _wheelAngle += deltaX / wheelRadius;
+      _trackScroll += deltaX * 10;
+      _propellerBlur += deltaX * 25;
 
-      // Acceleration squat
-      _bodyPitch = progress * 0.035;
+      // Acceleration squat (rear squats 5px for anticipation)
+      _bodyPitch = (progress * 0.0436).clamp(-0.0436, 0.0436);
       _bodyBounce = sin(progress * pi * 6) * 2.0;
 
       if (progress >= 1.0) {
@@ -210,6 +245,9 @@ class VehicleMotion extends ChangeNotifier {
     _wheelAngle = 0.0;
     _bodyPitch = 0.0;
     _bodyBounce = 0.0;
+    _engineVibration = 0.0;
+    _trackScroll = 0.0;
+    _propellerBlur = 0.0;
     _isInputLocked = false;
     _isHeadlightOn = false;
     _isTaillightGlow = false;
@@ -223,6 +261,7 @@ class VehicleMotion extends ChangeNotifier {
   @override
   void dispose() {
     _motionTicker?.dispose();
+    _idleTicker?.dispose();
     super.dispose();
   }
 }

@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/camera/camera_controller.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/particles/particle_pool.dart';
-import '../../../data/models/vehicle_def.dart';
-import '../../../data/repositories/vehicle_repository.dart';
+import '../../../core/motion/motion_tokens.dart';
+import '../../../core/services/audio_service.dart';
+import '../../../core/services/haptics_service.dart';
+import '../../../data/models/repair_spot_def.dart';
 import '../controllers/game_controller.dart';
 import 'repair/broken_light_repair_widget.dart';
 import 'repair/dent_repair_widget.dart';
 import 'repair/flat_tire_repair_widget.dart';
 import 'repair/part_replacement_widget.dart';
-import 'repair/repair_tool_bar.dart';
+import 'repair/repair_spot_highlight.dart';
 
 class RepairView extends StatefulWidget {
   const RepairView({super.key});
@@ -19,76 +21,61 @@ class RepairView extends StatefulWidget {
 }
 
 class _RepairViewState extends State<RepairView> with SingleTickerProviderStateMixin {
-  late AnimationController _tickerController;
-  final ParticlePool _particlePool = ParticlePool();
+  String? _focusedSpotId;
+  late AnimationController _popController;
+  late Animation<double> _popScale;
 
   @override
   void initState() {
     super.initState();
-    _tickerController = AnimationController(
+    _popController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat();
-    _tickerController.addListener(() {
-      _particlePool.update(0.016);
-      if (mounted) setState(() {});
-    });
+      duration: MotionTokens.fixConfirmationDuration,
+    );
+
+    _popScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: MotionTokens.fixConfirmationScaleMax).chain(CurveTween(curve: MotionTokens.fixConfirmationCurve)), weight: 70),
+      TweenSequenceItem(tween: Tween(begin: MotionTokens.fixConfirmationScaleMax, end: 1.0), weight: 30),
+    ]).animate(_popController);
   }
 
   @override
   void dispose() {
-    _tickerController.dispose();
+    _popController.dispose();
     super.dispose();
   }
 
-  void _triggerSparks(Offset pos) {
-    _particlePool.spawnBurst(pos, ParticleType.spark, Colors.amber, count: 12);
-    _particlePool.spawnBurst(pos, ParticleType.smoke, Colors.grey, count: 6);
+  void _handleSpotSelected(RepairSpotDef spot) {
+    setState(() {
+      _focusedSpotId = spot.id;
+    });
+    try {
+      context.read<CameraController>().focusOn(spot.normalizedPos, 1.25, vsync: this);
+    } catch (_) {}
   }
 
-  Widget _buildSpotWidget({
-    required RepairSpotDef spot,
-    required int hitsRemaining,
-    required VoidCallback onHit,
-    required Offset pos,
-  }) {
-    switch (spot.spotType) {
-      case RepairSpotType.dent:
-      case RepairSpotType.scratch:
-        return DentRepairWidget(
-          hitsRemaining: hitsRemaining,
-          onTap: () {
-            _triggerSparks(pos);
-            onHit();
-          },
-        );
+  void _handleSpotHit(RepairSpotDef spot) {
+    final controller = context.read<GameController>();
+    controller.hitRepairSpot(spot.id);
 
-      case RepairSpotType.flatTire:
-        return FlatTireRepairWidget(
-          hitsRemaining: hitsRemaining,
-          onCompleteStep: () {
-            _triggerSparks(pos);
-            onHit();
-          },
-        );
+    try {
+      context.read<CameraController>().shake(4.0);
+    } catch (_) {}
 
-      case RepairSpotType.brokenLight:
-        return BrokenLightRepairWidget(
-          hitsRemaining: hitsRemaining,
-          onCompleteStep: () {
-            _triggerSparks(pos);
-            onHit();
-          },
-        );
+    HapticsService().mediumImpact();
 
-      case RepairSpotType.engine:
-        return PartReplacementWidget(
-          hitsRemaining: hitsRemaining,
-          onCompleteStep: () {
-            _triggerSparks(pos);
-            onHit();
-          },
-        );
+    final remaining = controller.repairHitsRemaining[spot.id] ?? 0;
+    if (remaining <= 0) {
+      AudioService().playFixSuccess();
+      HapticsService().successPattern();
+      _popController.forward(from: 0.0).then((_) {
+        setState(() {
+          _focusedSpotId = null;
+        });
+        try {
+          context.read<CameraController>().reset(vsync: this);
+        } catch (_) {}
+      });
     }
   }
 
@@ -96,94 +83,109 @@ class _RepairViewState extends State<RepairView> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final controller = context.watch<GameController>();
     final vehicle = controller.vehicleDef;
-    final hitsRemaining = controller.repairHitsRemaining;
-
-    final activeSpots = vehicle.repairSpots.where((s) => hitsRemaining.containsKey(s.id)).toList();
-    final activeSpot = activeSpots.firstWhere(
-      (s) => s.id == controller.selectedRepairSpotId,
-      orElse: () => activeSpots.first,
-    );
+    final spots = vehicle.repairSpots;
 
     return Column(
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          child: Chip(
-            avatar: Icon(Icons.handyman, size: 18, color: AppColors.accent),
-            label: Text(
-              'GARAGE REPAIR: Fix damaged parts!',
-              style: TextStyle(fontWeight: FontWeight.bold),
+        // Repair Phase Header Banner
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.primary, width: 1.5),
             ),
-            backgroundColor: AppColors.surface,
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.build, size: 20, color: AppColors.primary),
+                SizedBox(width: 8),
+                Text(
+                  'GARAGE REPAIR: FIX ALL VEHICLE DAMAGE',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 14),
+                ),
+              ],
+            ),
           ),
         ),
         Expanded(
           child: Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final width = constraints.maxWidth * 0.9;
-                final height = constraints.maxHeight * 0.7;
+                final width = constraints.maxWidth * 0.92;
+                final height = width / 2.0;
 
-                final damagedMap = <String, bool>{};
-                for (final spot in activeSpots) {
-                  damagedMap[spot.id] = (hitsRemaining[spot.id] ?? 0) <= 0;
-                }
+                return SizedBox(
+                  width: width,
+                  height: height,
+                  child: Stack(
+                    children: [
+                      // Active Repair Spot Indicators & Interactive Widgets
+                      ...spots.map((spot) {
+                        final hits = controller.repairHitsRemaining[spot.id] ?? spot.requiredHits;
+                        final isRepaired = hits <= 0;
+                        final spotPos = Offset(spot.normalizedPos.dx * width, spot.normalizedPos.dy * height);
 
-                return Stack(
-                  children: [
-                    // Vehicle Base
-                    CustomPaint(
-                      size: Size(width, height),
-                      painter: VehicleRepository.buildVehiclePainter(
-                        vehicleId: vehicle.id,
-                        bodyColor: controller.vehiclePaintColor,
-                        damagedSpots: damagedMap,
-                        rimStyle: controller.selectedRimStyle,
-                        decalType: controller.selectedDecal,
-                        decalOffset: controller.decalOffset,
-                        decalScale: controller.decalScale,
-                        isCleanShine: true,
-                      ),
-                    ),
-                    // Particles Layer
-                    CustomPaint(
-                      size: Size(width, height),
-                      painter: ParticlePainter(particles: _particlePool.activeParticles),
-                    ),
-                    // Spot Interactive Hotspots
-                    ...activeSpots.map((spot) {
-                      final hits = hitsRemaining[spot.id] ?? 0;
-                      final posX = spot.relativePosition.dx * width;
-                      final posY = spot.relativePosition.dy * height;
+                        if (isRepaired) return const SizedBox.shrink();
 
-                      return Positioned(
-                        left: posX - 28,
-                        top: posY - 28,
-                        child: _buildSpotWidget(
-                          spot: spot,
-                          hitsRemaining: hits,
-                          pos: Offset(posX, posY),
-                          onHit: () => controller.hitRepairSpot(spot.id),
-                        ),
-                      );
-                    }),
-                  ],
+                        return Positioned(
+                          left: spotPos.dx - 28,
+                          top: spotPos.dy - 28,
+                          child: ScaleTransition(
+                            scale: _focusedSpotId == spot.id ? _popScale : const AlwaysStoppedAnimation(1.0),
+                            child: _buildRepairSpotWidget(spot, hits),
+                          ),
+                        );
+                      }),
+                      // Spot Focus Bouncing Target Overlay
+                      if (_focusedSpotId == null)
+                        ...spots.where((s) => (controller.repairHitsRemaining[s.id] ?? 1) > 0).map((spot) {
+                          final spotPos = Offset(spot.normalizedPos.dx * width, spot.normalizedPos.dy * height);
+                          return RepairSpotHighlight(
+                            position: spotPos,
+                            onTap: () => _handleSpotSelected(spot),
+                          );
+                        }),
+                    ],
+                  ),
                 );
               },
             ),
           ),
         ),
-        // If engine spot active, show spare parts tray
-        if (activeSpot.spotType == RepairSpotType.engine && (hitsRemaining[activeSpot.id] ?? 0) > 0)
-          const PartTrayWidget(),
-
-        // Repair Tool Selector Bar
-        RepairToolBar(
-          repairSpots: activeSpots,
-          activeSpotId: controller.selectedRepairSpotId,
-          onSpotSelected: (id) => controller.selectRepairSpot(id),
+        // Draggable Engine Parts Tray if engine repair active
+        const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: PartTrayWidget(),
         ),
       ],
     );
+  }
+
+  Widget _buildRepairSpotWidget(RepairSpotDef spot, int hits) {
+    switch (spot.type) {
+      case RepairType.dent:
+        return DentRepairWidget(
+          hitsRemaining: hits,
+          onTap: () => _handleSpotHit(spot),
+        );
+      case RepairType.flatTire:
+        return FlatTireRepairWidget(
+          hitsRemaining: hits,
+          onCompleteStep: () => _handleSpotHit(spot),
+        );
+      case RepairType.brokenLight:
+        return BrokenLightRepairWidget(
+          hitsRemaining: hits,
+          onCompleteStep: () => _handleSpotHit(spot),
+        );
+      case RepairType.enginePart:
+        return PartReplacementWidget(
+          hitsRemaining: hits,
+          onCompleteStep: () => _handleSpotHit(spot),
+        );
+    }
   }
 }
