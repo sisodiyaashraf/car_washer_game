@@ -9,6 +9,7 @@ class AppUITheme {
   static const Color green = Color(0xFF4CAF50);
   static const Color red = Color(0xFFE53935);
   static const Color navyOutline = Color(0xFF1D2B3A);
+  static const Color cardBg = Color(0xFF334155);
 
   // Linear Gradients
   static const LinearGradient blueButtonGradient = LinearGradient(
