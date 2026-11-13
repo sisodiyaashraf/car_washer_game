@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/asset_paths.dart';
+import '../../../core/camera/camera_controller.dart';
 import '../../../core/services/audio_service.dart';
 import '../controllers/game_controller.dart';
 import '../controllers/vehicle_motion.dart';
 import '../widgets/customization_view.dart';
 import '../widgets/done_view.dart';
-import '../widgets/motion_vehicle_widget.dart';
 import '../widgets/paint_view.dart';
 import '../widgets/phase_banner_widget.dart';
 import '../widgets/phase_indicator_bar.dart';
 import '../widgets/repair_view.dart';
+import '../widgets/stage_widget.dart';
 import '../widgets/tutorial_hint_widget.dart';
 import '../widgets/vehicle_preview_view.dart';
 import '../widgets/wash_view.dart';
@@ -38,11 +38,13 @@ class _GameScreenBody extends StatefulWidget {
 
 class _GameScreenBodyState extends State<_GameScreenBody> with TickerProviderStateMixin {
   late VehicleMotion _motion;
+  late CameraController _camera;
 
   @override
   void initState() {
     super.initState();
     _motion = VehicleMotion();
+    _camera = CameraController();
     AudioService().switchBgm(BgmTrack.gameplay);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -60,6 +62,7 @@ class _GameScreenBodyState extends State<_GameScreenBody> with TickerProviderSta
   @override
   void dispose() {
     _motion.dispose();
+    _camera.dispose();
     super.dispose();
   }
 
@@ -80,8 +83,11 @@ class _GameScreenBodyState extends State<_GameScreenBody> with TickerProviderSta
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<VehicleMotion>.value(
-      value: _motion,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<VehicleMotion>.value(value: _motion),
+        ChangeNotifierProvider<CameraController>.value(value: _camera),
+      ],
       child: PopScope(
         canPop: true,
         child: Scaffold(
@@ -98,21 +104,12 @@ class _GameScreenBodyState extends State<_GameScreenBody> with TickerProviderSta
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Phase Background Image with Cross-fade
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 500),
-                      child: Image.asset(
-                        AssetPaths.background(bgPhase),
-                        key: ValueKey(bgPhase),
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-                    ),
-                    // Motion Vehicle Layer
-                    MotionVehicleWidget(
+                    // Layered Parallax Stage
+                    StageWidget(
+                      bgPhase: bgPhase,
                       vehicle: controller.vehicleDef,
                       motion: _motion,
+                      camera: _camera,
                       paintColorName: controller.vehiclePaintColorName,
                       isDamaged: controller.phase == GamePhase.washSoap || controller.phase == GamePhase.washRinse,
                     ),
