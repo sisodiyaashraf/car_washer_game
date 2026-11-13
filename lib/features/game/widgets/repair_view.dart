@@ -5,7 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/motion/motion_tokens.dart';
 import '../../../core/services/audio_service.dart';
 import '../../../core/services/haptics_service.dart';
-import '../../../data/models/repair_spot_def.dart';
+import '../../../data/models/vehicle_def.dart';
 import '../controllers/game_controller.dart';
 import 'repair/broken_light_repair_widget.dart';
 import 'repair/dent_repair_widget.dart';
@@ -50,7 +50,7 @@ class _RepairViewState extends State<RepairView> with SingleTickerProviderStateM
       _focusedSpotId = spot.id;
     });
     try {
-      context.read<CameraController>().focusOn(spot.normalizedPos, 1.25, vsync: this);
+      context.read<CameraController>().focusOn(spot.relativePosition, 1.25, vsync: this);
     } catch (_) {}
   }
 
@@ -66,7 +66,7 @@ class _RepairViewState extends State<RepairView> with SingleTickerProviderStateM
 
     final remaining = controller.repairHitsRemaining[spot.id] ?? 0;
     if (remaining <= 0) {
-      AudioService().playFixSuccess();
+      AudioService().playPartSnap();
       HapticsService().successPattern();
       _popController.forward(from: 0.0).then((_) {
         setState(() {
@@ -124,9 +124,9 @@ class _RepairViewState extends State<RepairView> with SingleTickerProviderStateM
                     children: [
                       // Active Repair Spot Indicators & Interactive Widgets
                       ...spots.map((spot) {
-                        final hits = controller.repairHitsRemaining[spot.id] ?? spot.requiredHits;
+                        final hits = controller.repairHitsRemaining[spot.id] ?? spot.hitsNeeded;
                         final isRepaired = hits <= 0;
-                        final spotPos = Offset(spot.normalizedPos.dx * width, spot.normalizedPos.dy * height);
+                        final spotPos = Offset(spot.relativePosition.dx * width, spot.relativePosition.dy * height);
 
                         if (isRepaired) return const SizedBox.shrink();
 
@@ -142,7 +142,7 @@ class _RepairViewState extends State<RepairView> with SingleTickerProviderStateM
                       // Spot Focus Bouncing Target Overlay
                       if (_focusedSpotId == null)
                         ...spots.where((s) => (controller.repairHitsRemaining[s.id] ?? 1) > 0).map((spot) {
-                          final spotPos = Offset(spot.normalizedPos.dx * width, spot.normalizedPos.dy * height);
+                          final spotPos = Offset(spot.relativePosition.dx * width, spot.relativePosition.dy * height);
                           return RepairSpotHighlight(
                             position: spotPos,
                             onTap: () => _handleSpotSelected(spot),
@@ -165,23 +165,24 @@ class _RepairViewState extends State<RepairView> with SingleTickerProviderStateM
   }
 
   Widget _buildRepairSpotWidget(RepairSpotDef spot, int hits) {
-    switch (spot.type) {
-      case RepairType.dent:
+    switch (spot.spotType) {
+      case RepairSpotType.dent:
+      case RepairSpotType.scratch:
         return DentRepairWidget(
           hitsRemaining: hits,
           onTap: () => _handleSpotHit(spot),
         );
-      case RepairType.flatTire:
+      case RepairSpotType.flatTire:
         return FlatTireRepairWidget(
           hitsRemaining: hits,
           onCompleteStep: () => _handleSpotHit(spot),
         );
-      case RepairType.brokenLight:
+      case RepairSpotType.brokenLight:
         return BrokenLightRepairWidget(
           hitsRemaining: hits,
           onCompleteStep: () => _handleSpotHit(spot),
         );
-      case RepairType.enginePart:
+      case RepairSpotType.engine:
         return PartReplacementWidget(
           hitsRemaining: hits,
           onCompleteStep: () => _handleSpotHit(spot),

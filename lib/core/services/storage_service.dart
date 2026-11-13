@@ -21,6 +21,7 @@ class StorageService {
   bool _isSoundEnabled = true;
   bool _isMusicEnabled = true;
   bool _isVibrationEnabled = true;
+  bool _isReducedMotionEnabled = false;
   bool _hasRemovedAds = false;
   bool _hasCompletedTutorial = false;
   bool _showPerformanceOverlay = false;
@@ -37,6 +38,7 @@ class StorageService {
   bool get isSoundEnabled => _isSoundEnabled;
   bool get isMusicEnabled => _isMusicEnabled;
   bool get isVibrationEnabled => _isVibrationEnabled;
+  bool get isReducedMotionEnabled => _isReducedMotionEnabled;
   bool get hasRemovedAds => _hasRemovedAds;
   bool get hasCompletedTutorial => _hasCompletedTutorial;
   bool get showPerformanceOverlay => _showPerformanceOverlay;
@@ -167,6 +169,7 @@ class StorageService {
   void toggleSound(bool value) => _isSoundEnabled = value;
   void toggleMusic(bool value) => _isMusicEnabled = value;
   void toggleVibration(bool value) => _isVibrationEnabled = value;
+  void toggleReducedMotion(bool value) => _isReducedMotionEnabled = value;
   void togglePerformanceOverlay(bool value) => _showPerformanceOverlay = value;
   void setRemoveAds(bool value) => _hasRemovedAds = value;
 
